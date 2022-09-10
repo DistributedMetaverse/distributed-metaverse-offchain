@@ -50,7 +50,7 @@ func serve() {
 
     // Routes
     e.POST("/transaction/publish", publishTransaction)
-    e.POST("/block/create", createBlock)
+    e.POST("/block/publish", publishBlock)
 
     // Start server
     e.Logger.Fatal(e.Start(":1323"))
@@ -158,7 +158,8 @@ func getLastBlockHash() (string, error) {
 
     result, err := rdb.Get(ctx, "lastBlockHash").Result()
     if err != nil {
-        return lastBlockHash, err
+        block, err := createBlock()
+        return block.hash, err
     } else {
         lastBlockHash = result
     }
@@ -188,6 +189,31 @@ func main() {
 
     // 웹서버 실행
     serve()
+}
+
+// 블록 생성
+func createBlock() (Block, error) {
+    block, err := buildBlock()
+
+    // 발행할 블록 본문 만들기
+    jsonData, err := json.Marshal(block)
+    if err != nil {
+        return block, err
+    }
+
+    // 블록 생성
+    err2 := rdb.Set(ctx, block.hash, jsonData, 0).Err()
+    if err2 != nil {
+        return block, err2
+    }
+
+    // 최근 해시 갱신
+    err3 := rdb.Set(ctx, "lastBlockHash", block.hash, 0).Err()
+    if err3 != nil {
+        return block, err3
+    }
+
+    return block, err
 }
 
 // 트랜젝션 발행
@@ -230,25 +256,11 @@ func publishTransaction(c echo.Context) error {
     return c.JSON(http.StatusOK, response)
 }
 
-func createBlock(c echo.Context) error {
-    block, err := buildBlock()
-    
-    // 발행할 블록 본문 만들기
-    jsonData, err := json.Marshal(block)
+func publishBlock(c echo.Context) error {
+    // 블록 생성
+    block, err := createBlock()
     if err != nil {
         return err
-    }
-
-    // 블록 생성
-    err2 := rdb.Set(ctx, block.hash, jsonData, 0).Err()
-    if err2 != nil {
-        return err2
-    }
-    
-    // 최근 해시 갱신
-    err3 := rdb.Set(ctx, "lastBlockHash", block.hash, 0).Err()
-    if err3 != nil {
-        return err3
     }
 
     // 모든 작업이 완료되었으면 오류 없음으로 반환
