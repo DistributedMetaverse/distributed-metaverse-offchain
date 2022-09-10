@@ -31,6 +31,7 @@ type Transaction struct {
     timestamp time.Time
 }
 
+// 해시 계산
 func (b Block) calculateHash() {
     data, _ := json.Marshal(b.transactions)
     blockData := b.previousHash + string(data) + b.timestamp.String()
@@ -38,13 +39,8 @@ func (b Block) calculateHash() {
     b.hash = fmt.Sprintf("%x", blockHash)
 }
 
-// 증명 절차 정의
-func doProof() {
-    
-}
-
 // 외부 API
-func doServe() {
+func serve() {
     // Echo instance
     e := echo.New()
 
@@ -53,7 +49,8 @@ func doServe() {
     e.Use(middleware.Recover())
 
     // Routes
-    e.GET("/publish", publish)
+    e.POST("/transaction/publish", publishTransaction)
+    e.POST("/block/create", createBlock)
 
     // Start server
     e.Logger.Fatal(e.Start(":1323"))
@@ -155,28 +152,6 @@ func getLastTransactionId() (int, error) {
     return lastTransactionId, err
 }
 
-// 현재 난이도 구하기
-func getLastDifficulty() (int, error) {
-    lastDifficulty := -1
-
-    result, err := rdb.Get(ctx, "lastDifficulty").Result()
-    if err != nil {
-        return lastDifficulty, err
-    }
-
-    difficulty, err := strconv.Atoi(result)
-    if err != nil {
-        lastDifficulty = difficulty
-    } else {
-        err := rdb.Set(ctx, "lastDifficulty", strconv.Itoa(2), 0).Err()
-        if err != nil {
-            lastDifficulty = 2
-        }
-    }
-
-    return lastDifficulty, err
-}
-
 // 최근 블록 해시 구하기
 func getLastBlockHash() (string, error) {
     lastBlockHash := ""
@@ -200,17 +175,23 @@ func main() {
         DB:       0,  // use default DB
     })
     
-    // 최근 트랜젝션 ID 초기화
-    getLastTransactionId()
+    // 최근 트랜젝션 ID 확인
+    lastTransactionId, _ := getLastTransactionId()
+    fmt.Printf("lastTransactionId: %d\n", lastTransactionId)
     
-    
-    
-    // doProof()
-    // doServe()
+    // 최근 블록 해시 확인
+    lastBlockHash, _ := getLastBlockHash()
+    fmt.Printf("lastBlockHash: %s\n", lastBlockHash)
+
+    // 수신 함수 실행
+    go receiveTransactions()
+
+    // 웹서버 실행
+    serve()
 }
 
 // 트랜젝션 발행
-func publish(c echo.Context) error {
+func publishTransaction(c echo.Context) error {
     // 받은 요청 해석
     jsonMap := make(map[string]interface{})
     err := json.NewDecoder(c.Request().Body).Decode(&jsonMap)
@@ -230,13 +211,13 @@ func publish(c echo.Context) error {
     }
 
     // 발행할 트랜젝션 본문 만들기
-    publishedJsonData, err := json.Marshal(transaction)
+    jsonData, err := json.Marshal(transaction)
     if err != nil {
         return err
     }
 
     // 트랜젝션 발행
-    err2 := rdb.Publish(ctx, "transactions_live", publishedJsonData).Err()
+    err2 := rdb.Publish(ctx, "transactions_live", jsonData).Err()
     if err2 != nil {
         return err2
     }
@@ -244,6 +225,36 @@ func publish(c echo.Context) error {
     // 모든 작업이 완료되었으면 오류 없음으로 반환
     response := map[string]interface{}{
         "success": true,
+        "id": transaction.id,
+    }
+    return c.JSON(http.StatusOK, response)
+}
+
+func createBlock(c echo.Context) error {
+    block, err := buildBlock()
+    
+    // 발행할 블록 본문 만들기
+    jsonData, err := json.Marshal(block)
+    if err != nil {
+        return err
+    }
+
+    // 블록 생성
+    err2 := rdb.Set(ctx, block.hash, jsonData, 0).Err()
+    if err2 != nil {
+        return err2
+    }
+    
+    // 최근 해시 갱신
+    err3 := rdb.Set(ctx, "lastBlockHash", block.hash, 0).Err()
+    if err3 != nil {
+        return err3
+    }
+
+    // 모든 작업이 완료되었으면 오류 없음으로 반환
+    response := map[string]interface{}{
+        "success": true,
+        "hash": block.hash,
     }
     return c.JSON(http.StatusOK, response)
 }
