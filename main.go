@@ -56,6 +56,7 @@ func serve() {
     // Routes
     e.POST("/transaction/publish", publishTransaction)
     e.POST("/block/publish", publishBlock)
+    e.GET("/blockinfo/:hash", getBlockInfo)
 
     // Start server
     e.Logger.Fatal(e.Start(":1323"))
@@ -69,15 +70,11 @@ func receiveTransactions() {
 
     // 메시지 계속 수신
     for {
-        fmt.Println("*")
-
         // 최근 메시지 수신
         msg, err := pubsub.ReceiveMessage(ctx)
         if err != nil {
             panic(err)
         }
-
-        fmt.Println(msg.Payload)
 
         transaction := Transaction{}   // 트랜젝션 객체 생성
         json.Unmarshal([]byte(msg.Payload), &transaction)   // JSON을 객체로 변환
@@ -252,7 +249,7 @@ func saveBlock(b Block, jsonBytes []byte) error {
     }
 
     // 블록을 저장할 파일 생성
-    f, err := os.Create("data/" + b.Hash)
+    f, err := os.Create("data/" + b.Hash + ".json")
     defer f.Close()    // 작업을 완료하면 파일을 닫음
     if err != nil {
         return err
@@ -278,12 +275,12 @@ func publishTransaction(c echo.Context) error {
     }
 
     // 변수로 재정렬
-    filehash := jsonMap["filehash"].(string)
-    filetype := jsonMap["filetype"].(string)
-    filename := jsonMap["filename"].(string)
+    checksum := jsonMap["checksum"].(string)  // Checksum of the file
+    qmhash := jsonMap["qmhash"].(string)   // for IPFS QmHash/BafyHash
+    mimetype := jsonMap["mimetype"].(string)   // MIME type
 
     // 신규 트랜젝션 생성
-    transaction, err := buildTransaction(filehash + "," + filetype + "," + filename)
+    transaction, err := buildTransaction(checksum + "," + qmhash + "," + mimetype)
     if err != nil {
         return err
     }
@@ -314,6 +311,7 @@ func publishTransaction(c echo.Context) error {
     return c.JSON(http.StatusOK, response)
 }
 
+// 블록 발행
 func publishBlock(c echo.Context) error {
     // 블록 생성
     block, err := createBlock()
@@ -326,6 +324,34 @@ func publishBlock(c echo.Context) error {
         "success": true,
         "hash": block.Hash,
     }
+
+    return c.JSON(http.StatusOK, response)
+}
+
+// 블록 정보조회
+func getBlockInfo(c echo.Context) error {
+    hash := c.Param("hash")   // Hash 값 수신
+
+    // 로컬에서 블록 불러오기
+    b, err := os.ReadFile("data/" + hash + ".json")
+    if err != nil {
+        // 블록이 로컬에 없는 경우 Redis에서 조회
+        result, err := rdb.Get(ctx, hash).Result()
+        if err != nil {
+            return err
+        } else {
+            b = []byte(result)
+        }
+    }
+
+    block := Block{}   // 블록 객체 생성
+    json.Unmarshal(b, &block)   // JSON을 객체로 변환
+
+    // 모든 작업이 완료되었으면 오류 없음으로 반환
+    response := map[string]interface{}{
+        "success": true,
+        "block": block,
+    }
     return c.JSON(http.StatusOK, response)
 }
 
@@ -336,3 +362,5 @@ func publishBlock(c echo.Context) error {
 //     https://stackoverflow.com/questions/27137521/how-to-convert-interface-to-string
 //     https://stackoverflow.com/questions/26327391/json-marshalstruct-returns
 //     https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-exists
+//     https://echo.labstack.com/guide/request/
+
