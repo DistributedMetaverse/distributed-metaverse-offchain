@@ -15,7 +15,7 @@
 {"checksum": "<checksum>", "qmhash": "<qmhash>", "mimetype": "<plain/text>"}
 ```
 
-### CURL 명령
+### cURL command
 
 Request
 ```
