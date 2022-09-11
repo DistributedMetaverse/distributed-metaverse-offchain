@@ -11,7 +11,15 @@
 2. 윈도우즈는 `distributed-metaverse-offchain.exe`, 리눅스는 `distributed-metaverse-offchain` 실행
 3. 자동으로 작업증명(PoW), 트랜젝션 수발신, 블록 수발신이 시작됨
 
-## API 상세
+# API 상세
+
+## 요약
+|URI|Method|설명|
+|------|---|---|
+|/transaction/publish|POST|qmhash, mimetype, filename 필드 요구 (JSON 본문)|
+|/transaction/:id|GET|id는 트랜젝션 ID|
+|/block/:hash|GET|hash는 블록 해시|
+|/chain/:depth|GET|depth는 최근 블록 기준으로 어느 깊이끼지 검색할지 지정|
 
 ## `/transaction/publish` (POST): 아래 JSON 양식으로 전송함.
 
