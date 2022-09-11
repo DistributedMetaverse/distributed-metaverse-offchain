@@ -66,7 +66,6 @@ func serve() {
 
     // Routes
     e.POST("/transaction/publish", publishTransaction)
-    //e.GET("/block/publish", publishBlock)
     e.GET("/blockinfo/:hash", getBlockInfo)
 
     // Start server
@@ -117,7 +116,8 @@ func runReceiveBlocks() {
             continue
         }
 
-        saveBlock(block.Hash, jsonBytes)   // 블록을 로컬에 파일로 저장
+        // 블록을 로컬에 파일로 저장
+        saveBlock(block.Hash, jsonBytes)
         
         // 콘솔 메시지 출력
         fmt.Println(msg.Channel, msg.Payload)
@@ -132,7 +132,7 @@ func runProof() {
         if err != nil {
             continue
         }
-        fmt.Printf("New block: %s\n", block.Hash)
+        fmt.Printf("New block! %s\n", block.Hash)
     }
 }
 
@@ -260,9 +260,21 @@ func main() {
 // 블록 생성
 func createBlock() (Block, error) {
     block, err := buildBlock()
+
+    // 마지막 블록 Hash 구하기
+    lastBlockHash, _ := getLastBlockHash()
     
     // 작업 증명(PoW) 실행
     block.pow(6)    // 난이도 6단계
+    
+    // 마지막 블록 Hash 다시 구하기
+    _lastBlockHash, _ := getLastBlockHash()
+
+    // 작업 증명이 이루어지는 동안 다른 블록이 생성된 경우 (먼저 블록을 찾은 노드가 승리)
+    if lastBlockHash != _lastBlockHash {
+        err = fmt.Errorf("Lost Block! %s", block.Hash)
+        return block, err
+    }
 
     // 발행할 블록 본문 만들기
     jsonBytes, err := json.Marshal(block)
@@ -384,25 +396,6 @@ func publishTransaction(c echo.Context) error {
     }
     return c.JSON(http.StatusOK, response)
 }
-
-// 블록 발행
-/*
-func publishBlock(c echo.Context) error {
-    // 블록 생성
-    block, err := createBlock()
-    if err != nil {
-        return err
-    }
-
-    // 모든 작업이 완료되었으면 오류 없음으로 반환
-    response := map[string]interface{}{
-        "success": true,
-        "hash": block.Hash,
-    }
-
-    return c.JSON(http.StatusOK, response)
-}
-*/
 
 // 블록 정보조회
 func getBlockInfo(c echo.Context) error {
