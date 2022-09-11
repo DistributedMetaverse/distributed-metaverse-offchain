@@ -13,12 +13,12 @@
 
 ## API test
 
-아래와 같이 `test.json` 파일을 생성 후 CURL 명령을 이용하여 테스트 가능함.
+아래와 같이 `test.json` 파일을 생성 후 cURL 명령을 이용하여 테스트 가능함.
 
 ### test.json
 
 ```json
-{"qmhash": "<qmhash>", "mimetype": "<plain/text>"}
+{"qmhash": "<qmhash>", "mimetype": "<plain/text>", "filename": "<filename>"}
 ```
 
 ### cURL command
@@ -32,7 +32,7 @@ Response
 ```json
 {
     "success": true,
-    "id": 110
+    "id": 115
 }
 ```
 
@@ -40,28 +40,32 @@ Response
 
 ```json
 {
-    "previousHash": "00000036aa9d9b0549584728c15fa4b3972e689377b39b098e192a753f6e7f8f",
+    "previousHash": "000000b7b5e037df613bf1173f420b5a9228cbaab3581f25005afe791aa1dfe7",
     "transactions": [{
-        "data": "QmVEL2JqkH1Gd58EuhfkdYJMLEdHLzqK6EJbFDz8RyNLvA,video/x-msvideo",
-        "id": 107,
-        "datetime": "2022-09-11 22:12:28.4575376 +0900 KST m=+5.182499101"
+        "data": "{\"qmhash\":\"QmVEL2JqkH1Gd58EuhfkdYJMLEdHLzqK6EJbFDz8RyNLvA\",\"mimetype\":\"video/x-msvideo\",\"filename\":\"big_buck_bunny_1080p_stereo.avi\"}",
+        "id": 111,
+        "datetime": "2022-09-12 00:54:32.5607562 +0900 KST m=+93.911766901"
     }, {
-        "data": "QmVEL2JqkH1Gd58EuhfkdYJMLEdHLzqK6EJbFDz8RyNLvA,video/x-msvideo",
-        "id": 108,
-        "datetime": "2022-09-11 22:12:30.4761618 +0900 KST m=+7.201123301"
+        "data": "{\"qmhash\":\"QmVEL2JqkH1Gd58EuhfkdYJMLEdHLzqK6EJbFDz8RyNLvA\",\"mimetype\":\"video/x-msvideo\",\"filename\":\"big_buck_bunny_1080p_stereo.avi\"}",
+        "id": 112,
+        "datetime": "2022-09-12 00:54:34.0608671 +0900 KST m=+95.411877801"
     }, {
-        "data": "QmVEL2JqkH1Gd58EuhfkdYJMLEdHLzqK6EJbFDz8RyNLvA,video/x-msvideo",
-        "id": 109,
-        "datetime": "2022-09-11 22:12:31.4964231 +0900 KST m=+8.221384601"
+        "data": "{\"qmhash\":\"QmVEL2JqkH1Gd58EuhfkdYJMLEdHLzqK6EJbFDz8RyNLvA\",\"mimetype\":\"video/x-msvideo\",\"filename\":\"big_buck_bunny_1080p_stereo.avi\"}",
+        "id": 113,
+        "datetime": "2022-09-12 00:54:35.4791572 +0900 KST m=+96.830167901"
     }, {
-        "data": "QmVEL2JqkH1Gd58EuhfkdYJMLEdHLzqK6EJbFDz8RyNLvA,video/x-msvideo",
-        "id": 110,
-        "datetime": "2022-09-11 22:12:32.8842194 +0900 KST m=+9.609180901"
+        "data": "{\"qmhash\":\"QmVEL2JqkH1Gd58EuhfkdYJMLEdHLzqK6EJbFDz8RyNLvA\",\"mimetype\":\"video/x-msvideo\",\"filename\":\"big_buck_bunny_1080p_stereo.avi\"}",
+        "id": 114,
+        "datetime": "2022-09-12 00:54:36.7781704 +0900 KST m=+98.129181101"
+    }, {
+        "data": "{\"qmhash\":\"QmVEL2JqkH1Gd58EuhfkdYJMLEdHLzqK6EJbFDz8RyNLvA\",\"mimetype\":\"video/x-msvideo\",\"filename\":\"big_buck_bunny_1080p_stereo.avi\"}",
+        "id": 115,
+        "datetime": "2022-09-12 00:54:37.9252438 +0900 KST m=+99.276254501"
     }],
-    "hash": "000000e063ea9a97469ca4351bafad1d626d5f3051f7bb9e56f59ac0aa56d17a",
-    "datetime": "2022-09-11 22:13:01.2140948 +0900 KST m=+37.939056301",
-    "proof": 1275593,
-    "lastTransactionId": 110
+    "hash": "000000ae3e856ab81898f840f036b1a9c5d76e08bf3c482c57ff9f6deb303379",
+    "datetime": "2022-09-12 00:54:58.6619114 +0900 KST m=+120.012922101",
+    "proof": 5546121,
+    "lastTransactionId": 115
 }
 ```
 
