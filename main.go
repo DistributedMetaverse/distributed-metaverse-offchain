@@ -9,6 +9,7 @@ import (
     "context"
     "fmt"
     "time"
+    "strings"
     "strconv"
     "net/http"
     "encoding/json"
@@ -27,6 +28,7 @@ type Block struct {
     Transactions []Transaction `json:"transactions"`
     Hash string `json:"hash"`
     Datetime string `json:"datetime"`
+    Proof int `json:"proof"`
     LastTransactionId int `json:"lastTransactionId"`
 }
 
@@ -37,11 +39,19 @@ type Transaction struct {
 }
 
 // 해시 계산
-func (b Block) CalculateHash() string {
+func (b *Block) CalculateHash() {
     jsonBytes, _ := json.Marshal(b.Transactions)
-    blockData := b.PreviousHash + string(jsonBytes) + b.Datetime
+    blockData := b.PreviousHash + string(jsonBytes) + b.Datetime + strconv.Itoa(b.Proof)
     blockHash := sha256.Sum256([]byte(blockData))
-    return fmt.Sprintf("%x", blockHash)
+    b.Hash = fmt.Sprintf("%x", blockHash)
+}
+
+// 작업 증명 (PoW)
+func (b *Block) pow(difficulty int) {
+    for !strings.HasPrefix(b.Hash, strings.Repeat("0", difficulty)) {
+        b.Proof++
+        b.CalculateHash()
+    }
 }
 
 // 외부 API
@@ -55,16 +65,15 @@ func serve() {
 
     // Routes
     e.POST("/transaction/publish", publishTransaction)
-    e.POST("/block/publish", publishBlock)
+    //e.GET("/block/publish", publishBlock)
     e.GET("/blockinfo/:hash", getBlockInfo)
 
     // Start server
     e.Logger.Fatal(e.Start(":1323"))
 }
 
-func receiveTransactions() {
-    fmt.Println("* receiveTransactions")
-
+// 트랜젝션 수신 (고루틴)
+func runReceiveTransactions() {
     pubsub := rdb.Subscribe(ctx, "transactions_live")
     defer pubsub.Close()
 
@@ -82,6 +91,18 @@ func receiveTransactions() {
 
         // 콘솔 메시지 출력
         fmt.Println(msg.Channel, msg.Payload)
+    }
+}
+
+// 작업 증명(PoW) 실행 (고루틴)
+func runProof() {
+    for {
+        // 블록 생성
+        block, err := createBlock()
+        if err != nil {
+            continue
+        }
+        fmt.Printf("New block: %s\n", block.Hash)
     }
 }
 
@@ -117,7 +138,7 @@ func buildBlock() (Block, error) {
     }
 
     // 블록 해시 계산
-    block.Hash = block.CalculateHash()
+    block.CalculateHash()
 
     // 블록 반환
     return block, nil
@@ -192,8 +213,11 @@ func main() {
     lastBlockHash, _ := getLastBlockHash()
     fmt.Printf("lastBlockHash: %s\n", lastBlockHash)
 
-    // 수신 함수 실행
-    go receiveTransactions()
+    // 트랜젝션 수신 루틴 실행
+    go runReceiveTransactions()
+
+    // 작업 증명 루틴 실행
+    go runProof()
 
     // 웹서버 실행
     serve()
@@ -202,6 +226,9 @@ func main() {
 // 블록 생성
 func createBlock() (Block, error) {
     block, err := buildBlock()
+	
+	// 작업 증명(PoW) 실행
+    block.pow(5)    // 난이도 5단계
 
     // 발행할 블록 본문 만들기
     jsonBytes, err := json.Marshal(block)
@@ -209,7 +236,7 @@ func createBlock() (Block, error) {
         return block, err
     }
 
-    // 블록 생성
+    // 블록을 Redis에 발행
     err2 := rdb.Set(ctx, block.Hash, string(jsonBytes), 0).Err()
     if err2 != nil {
         return block, err2
@@ -312,6 +339,7 @@ func publishTransaction(c echo.Context) error {
 }
 
 // 블록 발행
+/*
 func publishBlock(c echo.Context) error {
     // 블록 생성
     block, err := createBlock()
@@ -327,6 +355,7 @@ func publishBlock(c echo.Context) error {
 
     return c.JSON(http.StatusOK, response)
 }
+*/
 
 // 블록 정보조회
 func getBlockInfo(c echo.Context) error {
@@ -363,4 +392,3 @@ func getBlockInfo(c echo.Context) error {
 //     https://stackoverflow.com/questions/26327391/json-marshalstruct-returns
 //     https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-exists
 //     https://echo.labstack.com/guide/request/
-
