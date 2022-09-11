@@ -7,8 +7,9 @@
 
 ## Deamon test
 
-1. `go build` 명령 후 윈도우즈는 `distributed-metaverse-offchain.exe`, 리눅스는 `distributed-metaverse-offchain` 실행
-2. 자동으로 작업증명(PoW), 트랜젝션 수발신, 블록 수발신이 시작됨
+1. 실행파일이 없는 경우 `go build` 명령으로 빌드 진행하여야 함
+2. 윈도우즈는 `distributed-metaverse-offchain.exe`, 리눅스는 `distributed-metaverse-offchain` 실행
+3. 자동으로 작업증명(PoW), 트랜젝션 수발신, 블록 수발신이 시작됨
 
 ## API test
 
