@@ -17,7 +17,7 @@
 
 ### cURL command
 
-Request
+Request (URI: http://127.0.0.1:1323/transaction/publish)
 ```
 curl -X POST -d @test.json http://127.0.0.1:1323/transaction/publish
 ```
