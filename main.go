@@ -362,12 +362,11 @@ func publishTransaction(c echo.Context) error {
     }
 
     // 변수로 재정렬
-    checksum := jsonMap["checksum"].(string)  // Checksum of the file
     qmhash := jsonMap["qmhash"].(string)   // for IPFS QmHash/BafyHash
     mimetype := jsonMap["mimetype"].(string)   // MIME type
 
     // 신규 트랜젝션 생성
-    transaction, err := buildTransaction(checksum + "," + qmhash + "," + mimetype)
+    transaction, err := buildTransaction(qmhash + "," + mimetype)
     if err != nil {
         return err
     }
