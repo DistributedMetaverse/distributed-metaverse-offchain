@@ -7,6 +7,7 @@ package main
 
 import (
     "os"
+    "os/exec"
     "context"
     "fmt"
     "time"
@@ -39,6 +40,12 @@ type Transaction struct {
     Datetime string `json:"datetime"`
 }
 
+type IPFSTransactionData struct {
+    QmHash string `json:"qmhash"`
+    MIMEType string `json:"mimetype"`
+    Filename string `json:"filename"`
+}
+
 // 해시 계산
 func (b *Block) CalculateHash() {
     jsonBytes, _ := json.Marshal(b.Transactions)
@@ -63,11 +70,13 @@ func serve() {
     // Middleware
     e.Use(middleware.Logger())
     e.Use(middleware.Recover())
+    e.Use(middleware.Static("downloads"))
 
     // Routes
     e.POST("/transaction/publish", publishTransaction)
-    e.GET("/blockinfo/:hash", getBlockInfo)
-    e.GET("/lastblocks/:depth", getLastBlocks)
+    e.GET("/transaction/:id", queryTransaction)
+    e.GET("/block/:hash", getBlockInfo)
+    e.GET("/chain/:depth", getLastBlocks)
 
     // Start server
     e.Logger.Fatal(e.Start(":1323"))
@@ -362,17 +371,21 @@ func publishTransaction(c echo.Context) error {
     }
 
     // 변수로 재정렬
-    qmhash := jsonMap["qmhash"].(string)   // for IPFS QmHash/BafyHash
-    mimetype := jsonMap["mimetype"].(string)   // MIME type
+    transactionData := IPFSTransactionData{
+        QmHash: jsonMap["qmhash"].(string),
+        MIMEType: jsonMap["mimetype"].(string),
+        Filename: jsonMap["filename"].(string),
+    }
+    jsonBytes_transactionData, err := json.Marshal(transactionData)
 
     // 신규 트랜젝션 생성
-    transaction, err := buildTransaction(qmhash + "," + mimetype)
+    transaction, err := buildTransaction(string(jsonBytes_transactionData))
     if err != nil {
         return err
     }
 
     // 발행할 트랜젝션 본문 만들기
-    jsonBytes, err := json.Marshal(transaction)
+    jsonBytes_transaction, err := json.Marshal(transaction)
     if err != nil {
         return err
     }
@@ -384,7 +397,7 @@ func publishTransaction(c echo.Context) error {
     }
 
     // 트랜젝션 발행
-    err3 := rdb.Publish(ctx, "transactions_live", string(jsonBytes)).Err()
+    err3 := rdb.Publish(ctx, "transactions_live", string(jsonBytes_transaction)).Err()
     if err3 != nil {
         return err3
     }
@@ -478,6 +491,105 @@ func getLastBlocks(c echo.Context) error {
     }
     return c.JSON(http.StatusOK, response)
 }
+
+// 트랜젝션 ID로 트랜젝션 찾기
+func searchByTransactionId(transactionId int) (Transaction, error) {
+    var transaction Transaction   // 트랜젝션
+
+    // 마지막 블록 Hash 구하기
+    lastBlockHash, err := getLastBlockHash()
+    if err != nil {
+        return transaction, err
+    }
+
+    // 블록 탐색
+    blockHash := lastBlockHash
+    for {
+        // 블록 조회
+        block, err := loadBlock(blockHash)
+        if err != nil {
+            break
+        }
+        
+        // 트랜젝션 찾기
+        for _, _transaction := range block.Transactions {
+            if _transaction.Id == transactionId {
+                transaction = _transaction
+                break
+            }
+        }
+
+        // 찾으려는 트랜젝션 ID가 블록의 마지막 트랜젝션 ID보다 번호가 낮은 경우 (찾을 수 없는 경우)
+        if block.LastTransactionId < transactionId {
+            err = fmt.Errorf("%s", "Transaction not found")
+            break
+        }
+
+        // 이전 블록 탐색
+        if block.PreviousHash != "" {
+            blockHash = block.PreviousHash
+        } else {
+            err = fmt.Errorf("%s", "Transaction not found")
+            break
+        }
+    }
+
+    return transaction, err
+}
+
+// 트랜젝션 퀴리
+func queryTransaction(c echo.Context) error {
+    transactionId := c.Param("id")   // 트랜젝션 ID 받기
+
+    // 트랜젝션 확인
+    n, _ := strconv.Atoi(transactionId)
+    transaction, err := searchByTransactionId(n)
+    if err != nil {
+        return err
+    }
+
+    // 트랜젝션 해석
+    transactionData := IPFSTransactionData{}
+    json.Unmarshal([]byte(transaction.Data), &transactionData)
+
+    // 다운로드 폴더 확인 및 생성
+    downloadPath := "downloads"
+    result, err := isExists(downloadPath)
+    if result == false || err != nil {
+        err := os.Mkdir(downloadPath, os.ModePerm)
+        if err != nil {
+            return err
+        }
+    }
+
+    // 파일 존재 확인
+    filePath :=  downloadPath + "/" + transactionData.QmHash
+    result2, err := isExists(filePath)
+    
+    // 없으면 다운로드 시작
+    if result2 == false || err != nil {
+        cmd := exec.Command("../kubo/ipfs", "get", transactionData.QmHash)
+        cmd.Dir = "downloads"
+        cmd.Start()   // 완료를 기다리지 않음
+
+        response := map[string]interface{}{
+            "success": true,
+			"data": transaction,
+            "status": "downloading",
+        }
+        return c.JSON(http.StatusOK, response)
+    }
+
+    // 있으면 파일 주소로 응답
+    response := map[string]interface{}{
+        "success": true,
+		"data": transaction,
+        "status": "ok",
+		"url": "http://127.0.0.1:1323/downloads/" + transactionData.QmHash,
+    }
+    return c.JSON(http.StatusOK, response)
+}
+
 
 // References:
 //     https://gist.github.com/LordGhostX/bb92b907731ee8ebe465a28c5c431cb4
