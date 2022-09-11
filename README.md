@@ -17,22 +17,71 @@
 
 ### test.json
 
-```
+```json
 {"checksum": "<checksum>", "qmhash": "<qmhash>", "mimetype": "<plain/text>"}
 ```
 
 ### cURL command
 
 Request (URI: http://127.0.0.1:1323/transaction/publish)
-```
+```bash
 curl -X POST -d @test.json http://127.0.0.1:1323/transaction/publish
 ```
 
 Response
-```
+```json
 {
     "success": true,
     "id": 32
+}
+```
+
+## 블록 예시
+
+```json
+{
+    "previousHash": "0000007e2d969207638009a10f6e92c08b081a9ec9ad5a8bccc9471fc0e96fa3",
+    "transactions": [{
+        "data": "123123123,QM1234,image/jpg",
+        "id": 92,
+        "datetime": "2022-09-11 17:51:24.8870431 +0900 KST m=+176.558629101"
+    }, {
+        "data": "123123123,QM1234,image/jpg",
+        "id": 93,
+        "datetime": "2022-09-11 17:51:38.4658174 +0900 KST m=+190.137403401"
+    }, {
+        "data": "123123123,QM1234,image/jpg",
+        "id": 94,
+        "datetime": "2022-09-11 17:51:40.0039828 +0900 KST m=+191.675568801"
+    }, {
+        "data": "123123123,QM1234,image/jpg",
+        "id": 95,
+        "datetime": "2022-09-11 17:51:41.8941423 +0900 KST m=+193.565728301"
+    }, {
+        "data": "123123123,QM1234,image/jpg",
+        "id": 96,
+        "datetime": "2022-09-11 17:51:43.1744591 +0900 KST m=+194.846045101"
+    }, {
+        "data": "123123123,QM1234,image/jpg",
+        "id": 97,
+        "datetime": "2022-09-11 17:51:44.3177225 +0900 KST m=+195.989308501"
+    }, {
+        "data": "123123123,QM1234,image/jpg",
+        "id": 98,
+        "datetime": "2022-09-11 17:51:45.3428911 +0900 KST m=+197.014477101"
+    }, {
+        "data": "123123123,QM1234,image/jpg",
+        "id": 99,
+        "datetime": "2022-09-11 17:51:46.4758142 +0900 KST m=+198.147400201"
+    }, {
+        "data": "123123123,QM1234,image/jpg",
+        "id": 100,
+        "datetime": "2022-09-11 17:52:18.5046022 +0900 KST m=+230.176188201"
+    }],
+    "hash": "000000b5c013ea9b28cea69dc1e08a2bb554ffc26ac0660e31e932f707ba0b63",
+    "datetime": "2022-09-11 17:52:41.3425134 +0900 KST m=+253.014099401",
+    "proof": 13595465,
+    "lastTransactionId": 100
 }
 ```
 
