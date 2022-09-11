@@ -5,6 +5,11 @@
 * 블록은 MQ(Redis 기반 메시지 큐) 및 로컬에 저장됨 (분산 저장)
 * 작업증명(PoW)에 따라 블록을 생성
 
+## Deamon test
+
+1. `go build` 명령 후 윈도우즈는 `distributed-metaverse-offchain.exe`, 리눅스는 `distributed-metaverse-offchain` 실행
+2. 자동으로 작업증명(PoW), 트랜젝션 수발신, 블록 수발신이 시작됨
+
 ## API test
 
 아래와 같이 `test.json` 파일을 생성 후 CURL 명령을 이용하여 테스트 가능함.
