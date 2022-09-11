@@ -1,6 +1,7 @@
 // 2022-09-11
 // https://github.com/DistributedMetaverse/distributed-metaverse-offchain
-// 공개SW대회용 오프체인(Offchain) 구현
+// 공개SW대회용 오프체인(Offchain) 구현'
+// Go Namhyeon <gnh1201@gmail.com>
 
 package main
 
@@ -82,13 +83,42 @@ func runReceiveTransactions() {
         // 최근 메시지 수신
         msg, err := pubsub.ReceiveMessage(ctx)
         if err != nil {
-            panic(err)
+            continue
         }
 
         transaction := Transaction{}   // 트랜젝션 객체 생성
         json.Unmarshal([]byte(msg.Payload), &transaction)   // JSON을 객체로 변환
         storedTransactions = append(storedTransactions, transaction)    // 트랜젝션 추가
 
+        // 콘솔 메시지 출력
+        fmt.Println(msg.Channel, msg.Payload)
+    }
+}
+
+// 블록 수신 (고루틴)
+func runReceiveBlocks() {
+    pubsub := rdb.Subscribe(ctx, "blocks_live")
+    defer pubsub.Close()
+
+    // 메시지 계속 수신
+    for {
+        // 최근 메시지 수신
+        msg, err := pubsub.ReceiveMessage(ctx)
+        if err != nil {
+            continue
+        }
+        
+        block := Block{}   // 블록 객체 생성
+        json.Unmarshal([]byte(msg.Payload), &block)   // JSON을 객체로 변환
+        
+        // 발행할 블록 본문 만들기
+        jsonBytes, err := json.Marshal(block)
+        if err != nil {
+            continue
+        }
+
+        saveBlock(block.Hash, jsonBytes)   // 블록을 로컬에 파일로 저장
+        
         // 콘솔 메시지 출력
         fmt.Println(msg.Channel, msg.Payload)
     }
@@ -134,6 +164,7 @@ func buildBlock() (Block, error) {
         PreviousHash: lastBlockHash,
         Transactions: transactions,
         Datetime: time.Now().String(),
+        Proof: 0,
         LastTransactionId: lastTransactionId,
     }
 
@@ -216,6 +247,9 @@ func main() {
     // 트랜젝션 수신 루틴 실행
     go runReceiveTransactions()
 
+    // 블록 수신 루틴 실행
+    go runReceiveBlocks()
+
     // 작업 증명 루틴 실행
     go runProof()
 
@@ -226,9 +260,9 @@ func main() {
 // 블록 생성
 func createBlock() (Block, error) {
     block, err := buildBlock()
-	
-	// 작업 증명(PoW) 실행
-    block.pow(5)    // 난이도 5단계
+    
+    // 작업 증명(PoW) 실행
+    block.pow(6)    // 난이도 6단계
 
     // 발행할 블록 본문 만들기
     jsonBytes, err := json.Marshal(block)
@@ -236,7 +270,7 @@ func createBlock() (Block, error) {
         return block, err
     }
 
-    // 블록을 Redis에 발행
+    // 블록을 Redis에 저장
     err2 := rdb.Set(ctx, block.Hash, string(jsonBytes), 0).Err()
     if err2 != nil {
         return block, err2
@@ -247,9 +281,15 @@ func createBlock() (Block, error) {
     if err3 != nil {
         return block, err3
     }
+    
+    // 블록을 Redis에 발행
+    err4 := rdb.Publish(ctx, "blocks_live", string(jsonBytes)).Err()
+    if err4 != nil {
+        return block, err4
+    }
 
     // 발생된 블록을 로컬에 파일로 저장
-    saveBlock(block, jsonBytes)
+    saveBlock(block.Hash, jsonBytes)
 
     return block, err
 }
@@ -263,7 +303,7 @@ func isExists(path string) (bool, error) {
 }
 
 // 블록을 로컬에 저장
-func saveBlock(b Block, jsonBytes []byte) error {
+func saveBlock(hash string, jsonBytes []byte) error {
     path := "data"   // 파일 디렉토리 경로 지정
 
     // 폴더 확인 및 생성
@@ -275,8 +315,15 @@ func saveBlock(b Block, jsonBytes []byte) error {
         }
     }
 
+    // 파일이 존재하면 넘어감
+    path2 := "data/" + hash + ".json"
+    result2, err := isExists(path2)
+    if !(result2 == false || err != nil) {
+        return nil
+    }
+
     // 블록을 저장할 파일 생성
-    f, err := os.Create("data/" + b.Hash + ".json")
+    f, err := os.Create(path2)
     defer f.Close()    // 작업을 완료하면 파일을 닫음
     if err != nil {
         return err
@@ -392,3 +439,4 @@ func getBlockInfo(c echo.Context) error {
 //     https://stackoverflow.com/questions/26327391/json-marshalstruct-returns
 //     https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-exists
 //     https://echo.labstack.com/guide/request/
+
