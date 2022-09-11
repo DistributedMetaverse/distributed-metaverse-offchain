@@ -7,14 +7,17 @@ package main
 
 import (
     "os"
+    "io"
     "os/exec"
     "context"
     "fmt"
     "time"
+    "bytes"
     "strings"
     "strconv"
     "net/http"
     "encoding/json"
+    "math/rand"
     "crypto/sha256"
     "github.com/labstack/echo/v4"
     "github.com/labstack/echo/v4/middleware"
@@ -70,13 +73,14 @@ func serve() {
     // Middleware
     e.Use(middleware.Logger())
     e.Use(middleware.Recover())
-    e.Use(middleware.Static("downloads"))
 
     // Routes
     e.POST("/transaction/publish", publishTransaction)
     e.GET("/transaction/:id", queryTransaction)
     e.GET("/block/:hash", getBlockInfo)
     e.GET("/chain/:depth", getLastBlocks)
+    e.POST("/upload", uploadFile)
+    e.Static("/downloads", "downloads")
 
     // Start server
     e.Logger.Fatal(e.Start(":1323"))
@@ -569,12 +573,12 @@ func queryTransaction(c echo.Context) error {
     // 없으면 다운로드 시작
     if result2 == false || err != nil {
         cmd := exec.Command("../kubo/ipfs", "get", transactionData.QmHash)
-        cmd.Dir = "downloads"
+        cmd.Dir = downloadPath
         cmd.Start()   // 완료를 기다리지 않음
 
         response := map[string]interface{}{
             "success": true,
-			"data": transaction,
+            "data": transaction,
             "status": "downloading",
         }
         return c.JSON(http.StatusOK, response)
@@ -583,13 +587,85 @@ func queryTransaction(c echo.Context) error {
     // 있으면 파일 주소로 응답
     response := map[string]interface{}{
         "success": true,
-		"data": transaction,
+        "data": transaction,
         "status": "ok",
-		"url": "http://127.0.0.1:1323/downloads/" + transactionData.QmHash,
+        "url": "http://127.0.0.1:1323/downloads/" + transactionData.QmHash,
     }
     return c.JSON(http.StatusOK, response)
 }
 
+// 파일 업로드
+func uploadFile(c echo.Context) error {
+    // 다운로드 폴더 확인 및 생성
+    uploadPath := "uploads"
+    result, err := isExists(uploadPath)
+    if result == false || err != nil {
+        err := os.Mkdir(uploadPath, os.ModePerm)
+        if err != nil {
+            return err
+        }
+    }
+
+    // Source
+    file, err := c.FormFile("file")
+    if err != nil {
+        return err
+    }
+    src, err := file.Open()
+    if err != nil {
+        return err
+    }
+    defer src.Close()
+    
+    // Destination
+    filename := strconv.Itoa(rand.Intn(1000000))
+    filepath := uploadPath + "/" + filename
+    dst, err := os.Create(filepath)
+    if err != nil {
+        return err
+    }
+    defer dst.Close()
+
+    // Copy
+    if _, err = io.Copy(dst, src); err != nil {
+        return err
+    }
+
+    // IPFS에 업로드
+    var bOut, bErr bytes.Buffer
+    cmd := exec.Command("../kubo/ipfs", "add", filename)
+    cmd.Dir = uploadPath
+    cmd.Stdout = &bOut
+    cmd.Stderr = &bErr
+    cmd.Run()
+
+    // 업로드 완료 체크
+    s := bOut.String()
+    qmHash := ""
+    pos := 0
+    for pos > -1 {
+        pos = strings.Index(s, " ")
+
+        if strings.HasPrefix(s, "Qm") {
+            qmHash = s[0:pos]
+            break
+        }
+
+        s = s[pos+1:]
+    }
+
+    // QmHash 파싱에 실패한 경우
+    if qmHash == "" {
+        return fmt.Errorf("%s", "QmHash not found")
+    }
+
+    // 모든 작업이 완료되었으면
+    response := map[string]interface{}{
+        "success": true,
+        "qmhash": qmHash,
+    }
+    return c.JSON(http.StatusOK, response)
+}
 
 // References:
 //     https://gist.github.com/LordGhostX/bb92b907731ee8ebe465a28c5c431cb4
@@ -599,4 +675,4 @@ func queryTransaction(c echo.Context) error {
 //     https://stackoverflow.com/questions/26327391/json-marshalstruct-returns
 //     https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-exists
 //     https://echo.labstack.com/guide/request/
-
+//     https://echo.labstack.com/cookbook/file-upload/
