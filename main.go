@@ -1,6 +1,11 @@
+// 2022-09-11
+// https://github.com/DistributedMetaverse/distributed-metaverse-offchain
+// 공개SW대회용 오프체인(Offchain) 구현
+
 package main
 
 import (
+    "os"
     "context"
     "fmt"
     "time"
@@ -10,7 +15,7 @@ import (
     "crypto/sha256"
     "github.com/labstack/echo/v4"
     "github.com/labstack/echo/v4/middleware"
-    "github.com/go-redis/redis/v8"   
+    "github.com/go-redis/redis/v8"
 )
 
 var ctx = context.Background()
@@ -18,25 +23,25 @@ var rdb *redis.Client
 var storedTransactions []Transaction
 
 type Block struct {
-    previousHash string
-    transactions []Transaction
-    hash string
-    timestamp time.Time
-    lastTransactionId int
+    PreviousHash string `json:"previousHash"`
+    Transactions []Transaction `json:"transactions"`
+    Hash string `json:"hash"`
+    Datetime string `json:"datetime"`
+    LastTransactionId int `json:"lastTransactionId"`
 }
 
 type Transaction struct {
-    data string
-    id int
-    timestamp time.Time
+    Data string `json:"data"`
+    Id int `json:"id"`
+    Datetime string `json:"datetime"`
 }
 
 // 해시 계산
-func (b Block) calculateHash() {
-    data, _ := json.Marshal(b.transactions)
-    blockData := b.previousHash + string(data) + b.timestamp.String()
+func (b Block) CalculateHash() string {
+    jsonBytes, _ := json.Marshal(b.Transactions)
+    blockData := b.PreviousHash + string(jsonBytes) + b.Datetime
     blockHash := sha256.Sum256([]byte(blockData))
-    b.hash = fmt.Sprintf("%x", blockHash)
+    return fmt.Sprintf("%x", blockHash)
 }
 
 // 외부 API
@@ -57,15 +62,22 @@ func serve() {
 }
 
 func receiveTransactions() {
-    pubsub := rdb.Subscribe(ctx, "transaction_live")
+    fmt.Println("* receiveTransactions")
+
+    pubsub := rdb.Subscribe(ctx, "transactions_live")
+    defer pubsub.Close()
 
     // 메시지 계속 수신
     for {
+        fmt.Println("*")
+
         // 최근 메시지 수신
         msg, err := pubsub.ReceiveMessage(ctx)
         if err != nil {
-            return
+            panic(err)
         }
+
+        fmt.Println(msg.Payload)
 
         transaction := Transaction{}   // 트랜젝션 객체 생성
         json.Unmarshal([]byte(msg.Payload), &transaction)   // JSON을 객체로 변환
@@ -85,29 +97,30 @@ func buildBlock() (Block, error) {
     
     // 마지막 블록 Hash 구하기
     lastBlockHash, _ := getLastBlockHash()
-    
-    // 현재 트랜젝션 복사
-    _storedTransactions := make([]Transaction, len(storedTransactions))
-    copy(storedTransactions, _storedTransactions)
-    storedTransactions = make([]Transaction, 0)
 
-    // 복사된 트랜젝션 확인
-    for _, transaction := range _storedTransactions {
-        if lastTransactionId <= transaction.id {
+    // 현재 트랜젝션 복사
+    //_storedTransactions := make([]Transaction, len(storedTransactions))
+    //copy(storedTransactions, _storedTransactions)
+    //storedTransactions = make([]Transaction, 0)
+
+    // 트랜젝션 확인
+    for _, transaction := range storedTransactions {
+        if transaction.Id <= lastTransactionId {
             transactions = append(transactions, transaction)
         }
     }
+    storedTransactions = nil   // 메모리에 남은 모든 트랜젝션 삭제
 
     // 블록 생성
     block := Block{
-        previousHash: lastBlockHash,
-        transactions: transactions,
-        timestamp: time.Now(),
-        lastTransactionId: lastTransactionId,
+        PreviousHash: lastBlockHash,
+        Transactions: transactions,
+        Datetime: time.Now().String(),
+        LastTransactionId: lastTransactionId,
     }
 
     // 블록 해시 계산
-    block.calculateHash()
+    block.Hash = block.CalculateHash()
 
     // 블록 반환
     return block, nil
@@ -122,9 +135,9 @@ func buildTransaction(data string) (Transaction, error) {
     }
 
     transaction := Transaction{
-        data: data,
-        id: lastTransactionId + 1,
-        timestamp: time.Now(),
+        Data: data,
+        Id: lastTransactionId + 1,
+        Datetime: time.Now().String(),
     }
 
     return transaction, nil
@@ -134,19 +147,16 @@ func buildTransaction(data string) (Transaction, error) {
 func getLastTransactionId() (int, error) {
     lastTransactionId := -1
 
-    result, err := rdb.Get(ctx, "lastTransactionId").Result()
-    if err != nil {
-        return lastTransactionId, err
-    }
-
+    result, _ := rdb.Get(ctx, "lastTransactionId").Result()
     transactionId, err := strconv.Atoi(result)
+
     if err != nil {
-        lastTransactionId = transactionId
-    } else {
-        err := rdb.Set(ctx, "lastTransactionId", strconv.Itoa(0), 0).Err()
+        err := rdb.Set(ctx, "lastTransactionId", "0", 0).Err()
         if err != nil {
             lastTransactionId = 0
         }
+    } else {
+        lastTransactionId = transactionId
     }
 
     return lastTransactionId, err
@@ -158,8 +168,9 @@ func getLastBlockHash() (string, error) {
 
     result, err := rdb.Get(ctx, "lastBlockHash").Result()
     if err != nil {
-        block, err := createBlock()
-        return block.hash, err
+        //block, err := createBlock()
+        //return block.hash, err
+        return lastBlockHash, err
     } else {
         lastBlockHash = result
     }
@@ -172,8 +183,8 @@ func main() {
     // Redis 서버에 연결
     rdb = redis.NewClient(&redis.Options{
         Addr:     "154.12.242.48:60713",
-        Password: "", // no password set
-        DB:       0,  // use default DB
+        //Password: "", // no password set
+        //DB:       0,  // use default DB
     })
     
     // 최근 트랜젝션 ID 확인
@@ -196,24 +207,65 @@ func createBlock() (Block, error) {
     block, err := buildBlock()
 
     // 발행할 블록 본문 만들기
-    jsonData, err := json.Marshal(block)
+    jsonBytes, err := json.Marshal(block)
     if err != nil {
         return block, err
     }
 
     // 블록 생성
-    err2 := rdb.Set(ctx, block.hash, jsonData, 0).Err()
+    err2 := rdb.Set(ctx, block.Hash, string(jsonBytes), 0).Err()
     if err2 != nil {
         return block, err2
     }
 
     // 최근 해시 갱신
-    err3 := rdb.Set(ctx, "lastBlockHash", block.hash, 0).Err()
+    err3 := rdb.Set(ctx, "lastBlockHash", block.Hash, 0).Err()
     if err3 != nil {
         return block, err3
     }
 
+    // 발생된 블록을 로컬에 파일로 저장
+    saveBlock(block, jsonBytes)
+
     return block, err
+}
+
+// 디렉토리 존재 여부
+func isExists(path string) (bool, error) {
+    _, err := os.Stat(path)
+    if err == nil { return true, nil }
+    if os.IsNotExist(err) { return false, nil }
+    return false, err
+}
+
+// 블록을 로컬에 저장
+func saveBlock(b Block, jsonBytes []byte) error {
+    path := "data"   // 파일 디렉토리 경로 지정
+
+    // 폴더 확인 및 생성
+    result, err := isExists(path)
+    if result == false || err != nil {
+        err := os.Mkdir(path, os.ModePerm)
+        if err != nil {
+            return err
+        }
+    }
+
+    // 블록을 저장할 파일 생성
+    f, err := os.Create("data/" + b.Hash)
+    defer f.Close()    // 작업을 완료하면 파일을 닫음
+    if err != nil {
+        return err
+    }
+    
+    // 파일에 내용 작성
+    n, err := f.Write(jsonBytes)
+    if err != nil {
+        return err
+    }
+    fmt.Printf("wrote %d bytes\n", n)
+
+    return nil
 }
 
 // 트랜젝션 발행
@@ -226,32 +278,38 @@ func publishTransaction(c echo.Context) error {
     }
 
     // 변수로 재정렬
-    hash := jsonMap["hash"].(string)
+    filehash := jsonMap["filehash"].(string)
     filetype := jsonMap["filetype"].(string)
     filename := jsonMap["filename"].(string)
 
     // 신규 트랜젝션 생성
-    transaction, err := buildTransaction(hash + "\t" + filetype + "\t" + filename)
+    transaction, err := buildTransaction(filehash + "," + filetype + "," + filename)
     if err != nil {
         return err
     }
 
     // 발행할 트랜젝션 본문 만들기
-    jsonData, err := json.Marshal(transaction)
+    jsonBytes, err := json.Marshal(transaction)
     if err != nil {
         return err
     }
 
-    // 트랜젝션 발행
-    err2 := rdb.Publish(ctx, "transactions_live", jsonData).Err()
+    // 마지막 트랜젝션 ID 올리기
+    err2 := rdb.Set(ctx, "lastTransactionId", strconv.Itoa(transaction.Id), 0).Err()
     if err2 != nil {
         return err2
+    }
+
+    // 트랜젝션 발행
+    err3 := rdb.Publish(ctx, "transactions_live", string(jsonBytes)).Err()
+    if err3 != nil {
+        return err3
     }
 
     // 모든 작업이 완료되었으면 오류 없음으로 반환
     response := map[string]interface{}{
         "success": true,
-        "id": transaction.id,
+        "id": transaction.Id,
     }
     return c.JSON(http.StatusOK, response)
 }
@@ -266,7 +324,7 @@ func publishBlock(c echo.Context) error {
     // 모든 작업이 완료되었으면 오류 없음으로 반환
     response := map[string]interface{}{
         "success": true,
-        "hash": block.hash,
+        "hash": block.Hash,
     }
     return c.JSON(http.StatusOK, response)
 }
@@ -276,3 +334,5 @@ func publishBlock(c echo.Context) error {
 //     https://redis.uptrace.dev/guide/go-redis-pubsub.html
 //     https://stackoverflow.com/questions/41410655/extract-json-from-golangs-echo-request
 //     https://stackoverflow.com/questions/27137521/how-to-convert-interface-to-string
+//     https://stackoverflow.com/questions/26327391/json-marshalstruct-returns
+//     https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-exists
