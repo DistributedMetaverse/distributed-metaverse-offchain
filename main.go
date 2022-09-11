@@ -67,6 +67,7 @@ func serve() {
     // Routes
     e.POST("/transaction/publish", publishTransaction)
     e.GET("/blockinfo/:hash", getBlockInfo)
+    e.GET("/lastblocks/:depth", getLastBlocks)
 
     // Start server
     e.Logger.Fatal(e.Start(":1323"))
@@ -397,9 +398,10 @@ func publishTransaction(c echo.Context) error {
     return c.JSON(http.StatusOK, response)
 }
 
-// 블록 정보조회
-func getBlockInfo(c echo.Context) error {
-    hash := c.Param("hash")   // Hash 값 수신
+// 블록 정보 불러오기
+func loadBlock(hash string) (Block, error) {
+    // 블록 객체 생성
+    block := Block{}   
 
     // 로컬에서 블록 불러오기
     b, err := os.ReadFile("data/" + hash + ".json")
@@ -407,19 +409,73 @@ func getBlockInfo(c echo.Context) error {
         // 블록이 로컬에 없는 경우 Redis에서 조회
         result, err := rdb.Get(ctx, hash).Result()
         if err != nil {
-            return err
+            return block, err
         } else {
             b = []byte(result)
         }
     }
 
-    block := Block{}   // 블록 객체 생성
-    json.Unmarshal(b, &block)   // JSON을 객체로 변환
+    // JSON을 객체로 변환
+    json.Unmarshal(b, &block)  
+
+    // 블록 반환
+    return block, err
+}
+
+// 블록 정보조회
+func getBlockInfo(c echo.Context) error {
+    hash := c.Param("hash")   // Hash 값 수신
+    
+    // 블록 정보 불러오기
+    block, err := loadBlock(hash)
+    if err != nil {
+        return err
+    }
 
     // 모든 작업이 완료되었으면 오류 없음으로 반환
     response := map[string]interface{}{
         "success": true,
-        "block": block,
+        "data": block,
+    }
+    return c.JSON(http.StatusOK, response)
+}
+
+// 블록 기록 조회 (최근 블록 기준)
+func getLastBlocks(c echo.Context) error {
+    var blocks []Block   // 블록 정의
+
+    depth := c.Param("depth")   // 탐색 깊이
+    n, err := strconv.Atoi(depth)   // 숫자로 변환
+
+    // 마지막 블록 Hash 구하기
+    lastBlockHash, err := getLastBlockHash()
+    if err != nil {
+        return err
+    }
+
+    // 블록 탐색
+    blockHash := lastBlockHash
+    for n > 0 {
+        // 블록을 찾고 추가
+        block, err := loadBlock(blockHash)
+        if err != nil {
+            break
+        }
+        blocks = append(blocks, block)
+        
+        // 이전 블록 탐색
+        if block.PreviousHash != "" {
+            blockHash = block.PreviousHash
+        }
+        
+        // 탐색 횟수 업데이트
+        n--
+    }
+    
+    // 모든 작업이 완료되었으면 오류 없음으로 반환
+    response := map[string]interface{}{
+        "success": true,
+        "data": blocks,
     }
     return c.JSON(http.StatusOK, response)
 }
