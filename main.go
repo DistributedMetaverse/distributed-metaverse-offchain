@@ -79,6 +79,7 @@ func serve() {
     e.GET("/transaction/:id", queryTransaction)
     e.GET("/block/:hash", getBlockInfo)
     e.GET("/chain/:depth", getLastBlocks)
+    e.GET("/stat", getStat)
     e.POST("/upload", uploadFile)
     e.Static("/downloads", "downloads")
 
@@ -223,6 +224,25 @@ func getLastTransactionId() (int, error) {
     }
 
     return lastTransactionId, err
+}
+
+// 최근 블록 수 구하기
+func getLastBlocksCount() (int, error) {
+	lastBlocksCount := -1
+
+    result, _ := rdb.Get(ctx, "lastBlocksCount").Result()
+    blocksCount, err := strconv.Atoi(result)
+
+    if err != nil {
+        err := rdb.Set(ctx, "lastBlocksCount", "0", 0).Err()
+        if err != nil {
+            lastBlocksCount = 0
+        }
+    } else {
+        lastBlocksCount = blocksCount
+    }
+
+    return lastBlocksCount, err
 }
 
 // 최근 블록 해시 구하기
@@ -663,6 +683,19 @@ func uploadFile(c echo.Context) error {
     response := map[string]interface{}{
         "success": true,
         "qmhash": qmHash,
+    }
+    return c.JSON(http.StatusOK, response)
+}
+
+func getStat(c echo.Context) error {
+	lastTransactionId, _ := getLastTransactionId()
+	lastBlockHash, _ := getLastBlockHash()
+	lastBlocksCount, _ := getLastBlocksCount()
+
+    response := map[string]interface{}{
+        "lastTransactionId": lastTransactionId,
+        "lastBlockHash": lastBlockHash,
+		"lastBlocksCount": lastBlocksCount,
     }
     return c.JSON(http.StatusOK, response)
 }
