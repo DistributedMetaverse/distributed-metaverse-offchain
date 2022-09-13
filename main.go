@@ -1,7 +1,9 @@
 // 2022-09-11
 // https://github.com/DistributedMetaverse/distributed-metaverse-offchain
-// 공개SW대회용 오프체인(Offchain) 구현'
+// 공개SW대회용 오프체인(Offchain) 구현
 // Go Namhyeon <gnh1201@gmail.com>
+
+// 블록 생성 기준은 작업증명(PoW) 또는 시간으로 정할 수 있음 (자세한 내용은 코드 참고)
 
 package main
 
