@@ -299,8 +299,9 @@ func createBlock() (Block, error) {
     lastBlockHash, _ := getLastBlockHash()
     
     // 작업 증명(PoW) 실행
-    block.pow(6)    // 난이도 6단계
-    
+    block.pow(6)    // PoW 문제를 풀면 블록 생성 (채굴과 동일함, CPU 사용률 높음)
+    //time.Sleep(5 * time.Minute)     // 5분마다 1개씩 블록 생성 (CPU 사용량 낮음)
+
     // 마지막 블록 Hash 다시 구하기
     _lastBlockHash, _ := getLastBlockHash()
 
@@ -709,3 +710,5 @@ func getStat(c echo.Context) error {
 //     https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-exists
 //     https://echo.labstack.com/guide/request/
 //     https://echo.labstack.com/cookbook/file-upload/
+//     https://stackoverflow.com/questions/1877045/how-do-you-get-the-output-of-a-system-command-in-go
+//     https://pkg.go.dev/time
