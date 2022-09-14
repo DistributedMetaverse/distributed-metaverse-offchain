@@ -304,8 +304,8 @@ func createBlock() (Block, error) {
     lastBlocksCount, _ := getLastBlocksCount()
 
     // 작업 증명(PoW) 실행
-    block.pow(6)    // PoW 문제를 풀면 블록 생성 (채굴과 동일함, CPU 사용률 높음)
-    //time.Sleep(5 * time.Minute)     // 5분마다 1개씩 블록 생성 (CPU 사용량 낮음)
+    block.pow(6)    // 작업증명(PoW) 문제를 풀면 블록 생성 (채굴과 동일함, CPU 사용률 높음)
+    //time.Sleep(rand.Intn(15) * time.Minute)     // 0분~15분 사이에 1개씩 블록 생성 (CPU 사용량 낮음)
 
     // 마지막 블록 Hash 다시 구하기
     _lastBlockHash, _ := getLastBlockHash()
