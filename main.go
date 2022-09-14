@@ -665,7 +665,7 @@ func uploadFile(c echo.Context) error {
 
     // IPFS에 업로드
     var bOut, bErr bytes.Buffer
-    cmd := exec.Command("../kubo/ipfs", "add", filename)
+    cmd := exec.Command("/usr/local/bin/ipfs", "add", filename)
     cmd.Dir = uploadPath
     cmd.Stdout = &bOut
     cmd.Stderr = &bErr
