@@ -20,6 +20,7 @@
 |/transaction/:id|GET|id는 트랜젝션 ID|
 |/block/:hash|GET|hash는 블록 해시|
 |/chain/:depth|GET|depth는 최근 블록 기준으로 어느 깊이끼지 검색할지 지정|
+|/stat|GET|통계 정보 (최근 블록 해시, 최근 블록 수, 마지막 트랜젝션 ID)|
 
 ## `/transaction/publish` (POST): 아래 JSON 양식으로 전송함.
 
