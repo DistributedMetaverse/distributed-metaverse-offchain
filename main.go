@@ -3,8 +3,6 @@
 // 공개SW대회용 오프체인(Offchain) 구현
 // Go Namhyeon <gnh1201@gmail.com>
 
-// 블록 생성 기준은 작업증명(PoW) 또는 시간으로 정할 수 있음 (자세한 내용은 코드 참고)
-
 package main
 
 import (
@@ -604,7 +602,7 @@ func queryTransaction(c echo.Context) error {
     
     // 없으면 다운로드 시작
     if result2 == false || err != nil {
-        cmd := exec.Command("../kubo/ipfs", "get", transactionData.QmHash)
+        cmd := exec.Command("/usr/local/bin/ipfs", "get", transactionData.QmHash)
         cmd.Dir = downloadPath
         cmd.Start()   // 완료를 기다리지 않음
 
