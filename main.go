@@ -230,7 +230,7 @@ func getLastTransactionId() (int, error) {
 
 // 최근 블록 수 구하기
 func getLastBlocksCount() (int, error) {
-	lastBlocksCount := -1
+    lastBlocksCount := -1
 
     result, _ := rdb.Get(ctx, "lastBlocksCount").Result()
     blocksCount, err := strconv.Atoi(result)
@@ -299,7 +299,10 @@ func createBlock() (Block, error) {
 
     // 마지막 블록 Hash 구하기
     lastBlockHash, _ := getLastBlockHash()
-    
+
+    // 최근 블록 갯수 구하기
+    lastBlocksCount, _ := getLastBlocksCount()
+
     // 작업 증명(PoW) 실행
     block.pow(6)    // PoW 문제를 풀면 블록 생성 (채굴과 동일함, CPU 사용률 높음)
     //time.Sleep(5 * time.Minute)     // 5분마다 1개씩 블록 생성 (CPU 사용량 낮음)
@@ -335,6 +338,12 @@ func createBlock() (Block, error) {
     err4 := rdb.Publish(ctx, "blocks_live", string(jsonBytes)).Err()
     if err4 != nil {
         return block, err4
+    }
+
+    // 최근 블록 수 갱신
+    err5 := rdb.Set(ctx, "lastBlocksCount", strconv.Itoa(lastBlocksCount + 1), 0).Err()
+    if err5 != nil {
+        return block, err5
     }
 
     // 발생된 블록을 로컬에 파일로 저장
@@ -691,14 +700,14 @@ func uploadFile(c echo.Context) error {
 }
 
 func getStat(c echo.Context) error {
-	lastTransactionId, _ := getLastTransactionId()
-	lastBlockHash, _ := getLastBlockHash()
-	lastBlocksCount, _ := getLastBlocksCount()
+    lastTransactionId, _ := getLastTransactionId()
+    lastBlockHash, _ := getLastBlockHash()
+    lastBlocksCount, _ := getLastBlocksCount()
 
     response := map[string]interface{}{
         "lastTransactionId": lastTransactionId,
         "lastBlockHash": lastBlockHash,
-		"lastBlocksCount": lastBlocksCount,
+        "lastBlocksCount": lastBlocksCount,
     }
     return c.JSON(http.StatusOK, response)
 }
