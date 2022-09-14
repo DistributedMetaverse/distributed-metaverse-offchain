@@ -165,6 +165,12 @@ func buildBlock() (Block, error) {
     //_storedTransactions := make([]Transaction, len(storedTransactions))
     //copy(storedTransactions, _storedTransactions)
     //storedTransactions = make([]Transaction, 0)
+    
+    // 블록에 들어갈 트랜젝션이 없는 경우
+    if len(storedTransactions) == 0 {
+        err := fmt.Errorf("%s", "Any transactions not found")
+        return Block{}, err
+    }
 
     // 트랜젝션 확인
     for _, transaction := range storedTransactions {
@@ -293,7 +299,11 @@ func main() {
 
 // 블록 생성
 func createBlock() (Block, error) {
+    // 블록 만들기
     block, err := buildBlock()
+    if err != nil {
+        return block, err
+    }
 
     // 마지막 블록 Hash 구하기
     lastBlockHash, _ := getLastBlockHash()
@@ -303,7 +313,7 @@ func createBlock() (Block, error) {
 
     // 작업 증명(PoW) 실행
     block.pow(6)    // 작업증명(PoW) 문제를 풀면 블록 생성 (채굴과 동일함, CPU 사용률 높음)
-    //time.Sleep(time.Duration(rand.Intn(5)) * time.Minute)     // 0분~5분 사이에 1개씩 블록 생성 (CPU 사용량 낮음)
+    //time.Sleep(time.Duration(rand.Intn(30)) * time.Second)     // 0초~30초 사이에 1개씩 블록 생성 (CPU 사용량 낮음)
 
     // 마지막 블록 Hash 다시 구하기
     _lastBlockHash, _ := getLastBlockHash()
@@ -721,3 +731,4 @@ func getStat(c echo.Context) error {
 //     https://echo.labstack.com/cookbook/file-upload/
 //     https://stackoverflow.com/questions/1877045/how-do-you-get-the-output-of-a-system-command-in-go
 //     https://pkg.go.dev/time
+//     https://stackoverflow.com/questions/17573190/how-to-multiply-duration-by-integer
