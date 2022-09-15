@@ -539,8 +539,16 @@ func getLastBlocks(c echo.Context) error {
 // 트랜젝션 ID로 트랜젝션 찾기
 func searchByTransactionId(transactionId int) (Transaction, error) {
     var transaction Transaction   // 트랜젝션
+    
+    // (블록이 아직 생성되지 않은) 메모리에서 트랜젝션 찾기
+    for _, storedTransaction := range storedTransactions {
+        if storedTransaction.Id == transactionId {
+            transaction = storedTransaction
+            return transaction, nil
+        }
+    }
 
-    // 마지막 블록 Hash 구하기
+    // (여기서부터는 블록에서 찾기) 마지막 블록 Hash 구하기
     lastBlockHash, err := getLastBlockHash()
     if err != nil {
         return transaction, err
