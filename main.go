@@ -24,6 +24,9 @@ import (
     "github.com/go-redis/redis/v8"
 )
 
+const REDIS_ADDR string = "154.12.242.48:60713"
+const INSTANCE_ADDR string = "127.0.0.1:1323"
+
 var ctx = context.Background()
 var rdb *redis.Client
 var storedTransactions []Transaction
@@ -271,7 +274,7 @@ func getLastBlockHash() (string, error) {
 func main() {
     // Redis 서버에 연결
     rdb = redis.NewClient(&redis.Options{
-        Addr:     "154.12.242.48:60713",
+        Addr:     REDIS_ADDR,
         //Password: "", // no password set
         //DB:       0,  // use default DB
     })
@@ -637,7 +640,7 @@ func queryTransaction(c echo.Context) error {
         "success": true,
         "data": transaction,
         "status": "ok",
-        "url": "http://127.0.0.1:1323/downloads/" + transactionData.QmHash,
+        "url": "http://" + INSTANCE_ADDR + "/downloads/" + transactionData.QmHash,
     }
     return c.JSON(http.StatusOK, response)
 }
