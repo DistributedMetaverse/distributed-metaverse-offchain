@@ -15,6 +15,8 @@ import (
     "bytes"
     "strings"
     "strconv"
+    "log"
+    "net"
     "net/http"
     "encoding/json"
     "math/rand"
@@ -24,8 +26,9 @@ import (
     "github.com/go-redis/redis/v8"
 )
 
-const REDIS_ADDR string = "154.12.242.48:60713"
-const INSTANCE_ADDR string = "127.0.0.1:1323"
+const REDIS_ADDR string = "154.12.242.48:60713"    // Redis MQ 서버 IP 및 Port 번호
+const INSTANCE_PORT int = 1323    // 이 인스턴스가 잡고 있을 Port 번호
+const INSTANCE_ADDR string = GetOutboundIP().String() + ":" + strconv.Itoa(INSTANCE_PORT)    // 이 인스턴스가 외부에 리소스를 제공할 때 보여주는 주소
 
 var ctx = context.Background()
 var rdb *redis.Client
@@ -87,7 +90,7 @@ func serve() {
     e.Static("/downloads", "downloads")
 
     // Start server
-    e.Logger.Fatal(e.Start(":1323"))
+    e.Logger.Fatal(e.Start(":" + strconv.Itoa(INSTANCE_PORT)))
 }
 
 // 트랜젝션 수신 (고루틴)
@@ -731,6 +734,19 @@ func getStat(c echo.Context) error {
     return c.JSON(http.StatusOK, response)
 }
 
+// Get preferred outbound ip of this machine
+func GetOutboundIP() net.IP {
+    conn, err := net.Dial("udp", "8.8.8.8:80")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer conn.Close()
+
+    localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+    return localAddr.IP
+}
+
 // References:
 //     https://gist.github.com/LordGhostX/bb92b907731ee8ebe465a28c5c431cb4
 //     https://redis.uptrace.dev/guide/go-redis-pubsub.html
@@ -743,3 +759,4 @@ func getStat(c echo.Context) error {
 //     https://stackoverflow.com/questions/1877045/how-do-you-get-the-output-of-a-system-command-in-go
 //     https://pkg.go.dev/time
 //     https://stackoverflow.com/questions/17573190/how-to-multiply-duration-by-integer
+//     https://stackoverflow.com/questions/23558425/how-do-i-get-the-local-ip-address-in-go
