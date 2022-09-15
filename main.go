@@ -28,7 +28,7 @@ import (
 
 const REDIS_ADDR string = "154.12.242.48:60713"    // Redis MQ 서버 IP 및 Port 번호
 const INSTANCE_PORT int = 1323    // 이 인스턴스가 잡고 있을 Port 번호
-const INSTANCE_ADDR string = GetOutboundIP().String() + ":" + strconv.Itoa(INSTANCE_PORT)    // 이 인스턴스가 외부에 리소스를 제공할 때 보여주는 주소
+var INSTANCE_ADDR string = GetOutboundIP().String() + ":" + strconv.Itoa(INSTANCE_PORT)    // 이 인스턴스가 외부에 리소스를 제공할 때 보여주는 주소
 
 var ctx = context.Background()
 var rdb *redis.Client
